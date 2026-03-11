@@ -145,26 +145,28 @@ INSERT IGNORE INTO inventory (item_name, unit, quantity, reorder_level) VALUES
 ('Plastic Bags (large)',     'pcs',   100.00, 30.00);
 
 
+-- ─── Customer Portal Accounts (DISABLED - Customer access removed) ──────────────────────────
+
 -- Create customer_accounts table with is_active defaulting to 1
-CREATE TABLE IF NOT EXISTS customer_accounts (
-    id             INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id    INT NOT NULL UNIQUE,
-    username       VARCHAR(50) NOT NULL UNIQUE,
-    password       VARCHAR(255) NOT NULL,
-    is_active      TINYINT(1) NOT NULL DEFAULT 1,
-    last_login     DATETIME DEFAULT NULL,
-    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
-);
+-- CREATE TABLE IF NOT EXISTS customer_accounts (
+--     id             INT AUTO_INCREMENT PRIMARY KEY,
+--     customer_id    INT NOT NULL UNIQUE,
+--     username       VARCHAR(50) NOT NULL UNIQUE,
+--     password       VARCHAR(255) NOT NULL,
+--     is_active      TINYINT(1) NOT NULL DEFAULT 1,
+--     last_login     DATETIME DEFAULT NULL,
+--     created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+--     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+-- );
 
 -- Fix any existing rows where is_active is NULL (old bad inserts)
-UPDATE customer_accounts SET is_active = 1 WHERE is_active IS NULL;
+-- UPDATE customer_accounts SET is_active = 1 WHERE is_active IS NULL;
+
+-- Confirm: should show all accounts with is_active = 1
+-- SELECT id, customer_id, username, is_active, created_at FROM customer_accounts;
 
 -- Add columns to orders table if not already present
 ALTER TABLE orders
     ADD COLUMN IF NOT EXISTS is_preorder  TINYINT(1) NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS service_type ENUM('walk_in','pickup','delivery') NOT NULL DEFAULT 'walk_in',
     ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00;
-
--- Confirm: should show all accounts with is_active = 1
-SELECT id, customer_id, username, is_active, created_at FROM customer_accounts;

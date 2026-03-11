@@ -45,59 +45,13 @@ if (isset($_GET['delete'])) {
     }
 }
 
-// ── Create / Update customer portal login account ──────────────────────────
-if (isset($_POST['create_account'])) {
-    $cid   = (int)$_POST['cust_id'];
-    $uname = sanitize($conn, $_POST['new_username']);
-    $pwd   = md5($_POST['new_password']);
-
-    if (empty($uname) || empty($_POST['new_password'])) {
-        $error = "Username and password are required.";
-    } else {
-        // Does this customer already have an account?
-        $existAcc = $conn->query("SELECT id FROM customer_accounts WHERE customer_id=$cid")->num_rows;
-        // Is the username taken by someone else?
-        $takenBy  = $conn->query("SELECT id FROM customer_accounts WHERE username='$uname' AND customer_id != $cid")->num_rows;
-
-        if ($takenBy > 0) {
-            $error = "Username '$uname' is already taken. Choose another.";
-        } elseif ($existAcc > 0) {
-            // Update existing account
-            $conn->query("UPDATE customer_accounts
-                          SET username='$uname', password='$pwd', is_active=1
-                          WHERE customer_id=$cid");
-            $success = "Portal account updated. Username: <strong>$uname</strong>";
-        } else {
-            // Create brand new account — explicitly set is_active=1
-            $res = $conn->query("INSERT INTO customer_accounts
-                                    (customer_id, username, password, is_active, created_at)
-                                 VALUES ($cid, '$uname', '$pwd', 1, NOW())");
-            if ($res) {
-                $success = "Portal account created! Username: <strong>$uname</strong> — share these with the customer.";
-            } else {
-                $error = "Failed to create account: " . $conn->error;
-            }
-        }
-    }
-}
-
-// Toggle account active/inactive
-if (isset($_POST['toggle_account'])) {
-    $cid = (int)$_POST['cust_id'];
-    $cur = (int)$_POST['current_active'];
-    $new = $cur ? 0 : 1;
-    $conn->query("UPDATE customer_accounts SET is_active=$new WHERE customer_id=$cid");
-    $success = "Customer portal account " . ($new ? "activated." : "deactivated.");
-}
-
 // Search
 $search = sanitize($conn, $_GET['search'] ?? '');
 $where  = $search ? "WHERE c.fullname LIKE '%$search%' OR c.contact_number LIKE '%$search%'" : "";
 
 $customers = $conn->query("
-    SELECT c.*, ca.username AS portal_username, ca.is_active AS portal_active, ca.id AS account_id
+    SELECT c.*
     FROM customers c
-    LEFT JOIN customer_accounts ca ON c.id = ca.customer_id
     $where
     ORDER BY c.created_at DESC
 ");
@@ -105,7 +59,7 @@ $customers = $conn->query("
 
 <div class="page-header">
     <h3><i class="fas fa-users me-2 text-primary"></i> Customer Management</h3>
-    <p>Manage customers and their Customer Portal login accounts</p>
+    <p>Manage customers and their information</p>
 </div>
 
 <?php if ($success): ?><div class="alert alert-success"><i class="fas fa-check-circle me-2"></i><?= $success ?></div><?php endif; ?>
@@ -157,7 +111,6 @@ $customers = $conn->query("
                             <th>#</th>
                             <th>Name</th>
                             <th>Contact</th>
-                            <th>Portal Account</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -173,36 +126,10 @@ $customers = $conn->query("
                             </td>
                             <td><?= htmlspecialchars($row['contact_number']) ?></td>
                             <td>
-                                <?php if ($row['portal_username']): ?>
-                                    <div class="d-flex align-items-center gap-1 flex-wrap">
-                                        <code style="font-size:0.78rem;"><?= htmlspecialchars($row['portal_username']) ?></code>
-                                        <?php if ((int)$row['portal_active'] === 1): ?>
-                                            <span class="badge bg-success" style="font-size:0.65rem;">Active</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-secondary" style="font-size:0.65rem;">Inactive</span>
-                                        <?php endif; ?>
-                                        <form method="POST" class="d-inline">
-                                            <input type="hidden" name="cust_id" value="<?= $row['id'] ?>">
-                                            <input type="hidden" name="current_active" value="<?= (int)$row['portal_active'] ?>">
-                                            <button name="toggle_account" class="btn btn-outline-secondary btn-sm" style="padding:1px 6px;font-size:0.7rem;" title="Toggle Active">
-                                                <?= ((int)$row['portal_active'] === 1) ? '🔒 Deactivate' : '🔓 Activate' ?>
-                                            </button>
-                                        </form>
-                                    </div>
-                                <?php else: ?>
-                                    <span class="text-muted" style="font-size:0.78rem;"><i class="fas fa-times-circle text-danger me-1"></i>No account yet</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
                                 <button class="btn btn-outline-primary btn-sm"
                                     onclick="openEdit(<?= $row['id'] ?>, '<?= addslashes($row['fullname']) ?>', '<?= addslashes($row['contact_number']) ?>', '<?= addslashes($row['email'] ?? '') ?>', '<?= addslashes($row['address'] ?? '') ?>')"
                                     title="Edit Customer">
                                     <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn btn-outline-success btn-sm"
-                                    onclick="openAccount(<?= $row['id'] ?>, '<?= addslashes($row['fullname']) ?>', '<?= addslashes($row['portal_username'] ?? '') ?>')"
-                                    title="<?= $row['portal_username'] ? 'Update Portal Account' : 'Create Portal Account' ?>">
-                                    <i class="fas fa-key"></i>
                                 </button>
                                 <a href="?delete=<?= $row['id'] ?>" class="btn btn-outline-danger btn-sm"
                                     onclick="return confirm('Delete this customer?')" title="Delete">
@@ -212,14 +139,13 @@ $customers = $conn->query("
                         </tr>
                     <?php endwhile; ?>
                     <?php if ($customers->num_rows === 0): ?>
-                        <tr><td colspan="5" class="text-center text-muted py-4">No customers found.</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted py-4">No customers found.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-</div>
 
 <!-- Edit Customer Modal -->
 <div class="modal fade" id="editModal" tabindex="-1">
@@ -243,39 +169,6 @@ $customers = $conn->query("
     </div>
 </div>
 
-<!-- Portal Account Modal -->
-<div class="modal fade" id="accountModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
-        <div class="modal-content" style="border-radius:14px;border:none;">
-            <div class="modal-header" style="background:linear-gradient(135deg,#2e7d32,#43a047);color:#fff;border-radius:14px 14px 0 0;">
-                <h5 class="modal-title"><i class="fas fa-key me-2"></i>Customer Portal Account</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4">
-                <p class="mb-3" style="font-size:0.88rem;">Setting login for: <strong id="acc_name"></strong></p>
-                <form method="POST">
-                    <input type="hidden" name="cust_id" id="acc_cust_id">
-                    <div class="mb-3">
-                        <label class="form-label">Username *</label>
-                        <input name="new_username" id="acc_username" class="form-control" placeholder="e.g. juan_santos" required autocomplete="off">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Password *</label>
-                        <input type="password" name="new_password" class="form-control" placeholder="Min 6 characters" minlength="6" required autocomplete="new-password">
-                    </div>
-                    <div class="alert" style="background:#e8f5e9;color:#1b5e20;font-size:0.78rem;border-radius:8px;padding:10px 12px;border:none;">
-                        <i class="fas fa-info-circle me-1"></i>
-                        After saving, share the <strong>username</strong> and <strong>password</strong> with the customer. They log in at <code>customer_login.php</code>.
-                    </div>
-                    <button name="create_account" class="btn btn-success w-100 mt-1">
-                        <i class="fas fa-save me-2"></i>Save Portal Account
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
 function openEdit(id, fullname, contact, email, address) {
     document.getElementById('edit_id').value = id;
@@ -284,13 +177,6 @@ function openEdit(id, fullname, contact, email, address) {
     document.getElementById('edit_email').value = email;
     document.getElementById('edit_address').value = address;
     new bootstrap.Modal(document.getElementById('editModal')).show();
-}
-function openAccount(cust_id, name, existing_username) {
-    document.getElementById('acc_cust_id').value = cust_id;
-    document.getElementById('acc_name').textContent = name;
-    document.getElementById('acc_username').value = existing_username || '';
-    document.querySelector('[name="new_password"]').value = '';
-    new bootstrap.Modal(document.getElementById('accountModal')).show();
 }
 </script>
 

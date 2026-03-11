@@ -125,8 +125,7 @@ body {
         </div>
     </div>
     <p class="text-center text-white mt-3" style="opacity:0.7; font-size:0.82rem;">
-        <a href="customers/customer_login.php" style="color:rgba(255,255,255,0.8); font-size:0.82rem; text-decoration:none; display:block; text-align:center; margin-bottom:8px;"><i class="fas fa-user me-1"></i>Customer Portal Login</a>
-    &copy; <?= date("Y") ?> LaundryHub &mdash; All Rights Reservedcopy; <?= date("Y") ?> LaundryHub &mdash; All Rights Reserved
+    &copy; <?= date("Y") ?> LaundryHub &mdash; All Rights Reserved
     </p>
 </div>
 </body>
