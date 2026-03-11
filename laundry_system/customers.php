@@ -1,6 +1,6 @@
 <?php include("includes/header.php"); include("config/db.php");
 
-// Only admin and cashier can access customers
+// Only admin and cashier can access customer
 requirePermission(['admin', 'cashier']);
 
 $success = $error = "";
@@ -179,5 +179,6 @@ function openEdit(id, fullname, contact, email, address) {
     new bootstrap.Modal(document.getElementById('editModal')).show();
 }
 </script>
+
 
 <?php include("includes/footer.php"); ?>
